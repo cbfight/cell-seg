@@ -1,7 +1,3 @@
-
-# coding: utf-8
-
-# In[11]:
 import matplotlib
 matplotlib.use('TkAgg')
 import sys
