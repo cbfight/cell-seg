@@ -17,8 +17,7 @@ from skimage.measure import regionprops
 from skimage.filters import gaussian
 import matplotlib.patches as mpatches
 
-
-
+color_dict = {'red':(255, 0, 0),'green':(0, 255, 0),'blue':(0, 0, 255),'white':(255, 255, 255),'black':(0, 0, 0)}
 
 
 class ImageCrawler():
@@ -32,12 +31,12 @@ class ImageCrawler():
         self.strip_pattern = '_c1+2+3.jpg'
         
     
-    def crawl(self,path): #on initialize only
+    def crawl(self, path):  # on initialize only
         walk = os.walk(path)
         folders = []
         
         for item in walk:
-        #a is path b is folders in path c is files in path
+        # a is path b is folders in path c is files in path
             
 
             folders.append(item[0])
@@ -56,15 +55,15 @@ class ImageCrawler():
                     files_i_want.append((file,original,mask,results)) #result is folder path
         self.target_images = files_i_want
         self.dirs = folders
-        
-        
-    def update_rm(self,path): #updates list of directories by removing whatever you put in here from it.
+
+    def update_rm(self, path):  # updates list of directories by removing whatever you put in here from it.
         for item in self.target_images:
             index = self.target_images.index(item)
-            if item[3]==path:
+            if item[3] == path:
                 del self.target_images[index]
-    def fresh_filter(self,path):
-            if re.search(self.already_masked,path):
+
+    def fresh_filter(self, path):
+            if re.search(self.already_masked, path):
                 return False
         
 
@@ -75,15 +74,15 @@ class ImageCrawler():
 
 class Paint(tk.Tk):
     """Opens an input path in a Paint object for manual segmentation, then outputs the result after the user saves to the output path"""
-    def __init__(self,impath,imout):
+    def __init__(self, impath, imout):
         
         tk.Tk.__init__(self)
         self.impath = impath
-        self.color1 = '#%02x%02x%02x' % (0, 255, 0)
-        self.color2 = '#%02x%02x%02x' % (255, 0, 0)
-        self.color3 = '#%02x%02x%02x' % (0, 0, 255)
-        self.color4 = '#%02x%02x%02x' % (255, 255, 255)
-        self.color5 = '#%02x%02x%02x' % (0, 0, 0)
+        self.color1 = '#%02x%02x%02x' % color_dict['green']
+        self.color2 = '#%02x%02x%02x' % color_dict['red']
+        self.color3 = '#%02x%02x%02x' % color_dict['blue']
+        self.color4 = '#%02x%02x%02x' % color_dict['white']
+        self.color5 = '#%02x%02x%02x' % color_dict['black']
         
         self.size_s = 5
         self.size_m = 10
@@ -95,29 +94,33 @@ class Paint(tk.Tk):
         self.size = 10
         self.strsize = 'M'
         self.mode = 'Including'
-        self.title(' | '.join([self.impath,self.mode,self.strsize]))
+        self.title(' | '.join([self.impath, self.mode, self.strsize]))
         
         menubar = tk.Menu(self)
         self.config(menu=menubar)
         filemenu1 = tk.Menu(menubar)
         filemenu2 = tk.Menu(menubar)
         filemenu3 = tk.Menu(menubar)
-        filemenu1.add_command(label="Small | 7",command=lambda:self.setSize(self.size_s))
-        filemenu1.add_command(label="Medium | 8",command=lambda:self.setSize(self.size_m))
-        filemenu1.add_command(label="Large | 9",command=lambda:self.setSize(self.size_l))
-        filemenu1.add_command(label="X-Large | 0",command=lambda:self.setSize(self.size_xl))
-        filemenu1.add_command(label="XXL-Large",command=lambda:self.setSize(self.size_xxl))
-        filemenu2.add_command(label="Green | 1", command=lambda:self.setColor(self.color1))
-        filemenu2.add_command(label="Red | 2",command=lambda:self.setColor(self.color2))
+        filemenu1.add_command(label="Small | 7", command=lambda: self.setSize(self.size_s))
+        filemenu1.add_command(label="Medium | 8", command=lambda: self.setSize(self.size_m))
+        filemenu1.add_command(label="Large | 9", command=lambda: self.setSize(self.size_l))
+        filemenu1.add_command(label="X-Large | 0", command=lambda: self.setSize(self.size_xl))
+        filemenu1.add_command(label="XXL-Large", command=lambda: self.setSize(self.size_xxl))
+
+        filemenu2.add_command(label="Green | 1", command=lambda: self.setColor(self.color1))
+        filemenu2.add_command(label="Red | 2", command=lambda: self.setColor(self.color2))
+        filemenu2.add_command(label="Blue", command=lambda: self.setColor(self.color3))
+        filemenu2.add_command(label="White", command=lambda: self.setColor(self.color4))
+        filemenu2.add_command(label="Black", command=lambda: self.setColor(self.color5))
         
-        filemenu3.add_command(label="Reset | r",command=self.reset)
-        filemenu3.add_command(label="Remove Image | backspace",command=self.clearimage)
-        filemenu3.add_command(label="Save | s",command=self.savefile)
-        filemenu3.add_command(label="Quit | q",command=self.quit)
+        filemenu3.add_command(label="Reset | r", command=self.reset)
+        filemenu3.add_command(label="Remove Image | backspace", command=self.clearimage)
+        filemenu3.add_command(label="Save | s", command=self.savefile)
+        filemenu3.add_command(label="Quit | q", command=self.quit_paint)
         
-        menubar.add_cascade(label="Brush Size",menu=filemenu1)
-        menubar.add_cascade(label="Brush Color",menu=filemenu2)
-        menubar.add_cascade(label="Auxillary",menu=filemenu3)
+        menubar.add_cascade(label="Brush Size", menu=filemenu1)
+        menubar.add_cascade(label="Brush Color", menu=filemenu2)
+        menubar.add_cascade(label="Auxillary", menu=filemenu3)
         
         
         
@@ -126,30 +129,29 @@ class Paint(tk.Tk):
         self.openedimage = Image.open(self.impath)
         self.imagex = self.openedimage.width
         self.imagey = self.openedimage.height
-        self.resizedimage = self.openedimage.resize((694,520),resample=Image.LANCZOS)
-        self.image= ImageTk.PhotoImage(self.resizedimage)
+        self.resizedimage = self.openedimage.resize((694, 520), resample=Image.LANCZOS)
+        self.image = ImageTk.PhotoImage(self.resizedimage)
         
         
-        self.lastx,self.lasty=None,None
-        
-        
-        self.canvas = tk.Canvas(master=self, width=694, height=520,highlightthickness=-1,background='gray')
+        self.lastx, self.lasty=None,None
+
+        self.canvas = tk.Canvas(master=self, width=694, height=520, highlightthickness=-1, background='gray')
         
         self.canvas.bind("<Button-1>", self.xy)
         self.canvas.bind("<B1-Motion>", self.addLine)
         self.bind("s", lambda x: self.savefile())
         self.bind("r", lambda x: self.reset())
-        self.bind("1",lambda x: self.setColor(self.color1))
-        self.bind("2",lambda x: self.setColor(self.color2))
-        self.bind("<BackSpace>",lambda x: self.clearimage())
-        self.bind("q",lambda x: self.quit())
-        self.bind("7",lambda x: self.setSize(self.size_s))
-        self.bind("8",lambda x: self.setSize(self.size_m))
-        self.bind("9",lambda x: self.setSize(self.size_l))
-        self.bind("0",lambda x: self.setSize(self.size_xl))
+        self.bind("1", lambda x: self.setColor(self.color1))
+        self.bind("2", lambda x: self.setColor(self.color2))
+        self.bind("<BackSpace>", lambda x: self.clearimage())
+        self.bind("q", lambda x: self.quit_paint())
+        self.bind("7", lambda x: self.setSize(self.size_s))
+        self.bind("8", lambda x: self.setSize(self.size_m))
+        self.bind("9", lambda x: self.setSize(self.size_l))
+        self.bind("0", lambda x: self.setSize(self.size_xl))
         
-        self.opened_image = tk.PhotoImage(master = self.canvas)
-        self.canvas.create_image(0,0, image=self.image,anchor=tk.NW,tags='image')
+        self.opened_image = tk.PhotoImage(master=self.canvas)
+        self.canvas.create_image(0, 0, image=self.image, anchor=tk.NW, tags='image')
         self.canvas.pack()
         
     def setSize(self,newsize):
@@ -165,32 +167,30 @@ class Paint(tk.Tk):
         if newsize == self.size_xxl:
             self.strsize = 'XXL'
         self.title(' | '.join([self.impath,self.mode,self.strsize]))
-    def test(self):
-        pass
-        
-        
-    def quit(self):
+
+
+    def quit_paint(self):
         self.destroy()
     def savefile(self):
         ps = self.canvas.postscript(colormode='color')
         img = Image.open(io.BytesIO(ps.encode('utf-8')))
-        img = img.resize((1388,1040),resample=Image.LANCZOS)
+        img = img.resize((1388, 1040), resample=Image.LANCZOS)
         #img = img.convert(mode="L")
         img.save(self.imout)
         
     
-    def setColor(self,newcolor):
+    def setColor(self, newcolor):
         self.color = newcolor
         if newcolor == self.color1:
-            self.mode='Including'
+            self.mode ='Including'
         if newcolor == self.color2:
-            self.mode='Excluding'
-        self.title(' | '.join([self.impath,self.mode,self.strsize]))
-    def addLine(self,event):
+            self.mode ='Excluding'
+        self.title(' | '.join([self.impath, self.mode, self.strsize]))
+    def addLine(self, event):
         self.canvas.create_line((self.lastx, self.lasty, event.x, event.y), fill=self.color, width=self.size, tags='drawn_line',smooth=1,splinesteps=50,joinstyle=tk.ROUND)
         self.lastx, self.lasty = event.x, event.y  
     def xy(self,event):
-        self.lastx,self.lasty=event.x,event.y
+        self.lastx, self.lasty = event.x, event.y
     def reset(self):
         self.canvas.delete('drawn_line')
     def clearimage(self):
@@ -202,75 +202,85 @@ class Paint(tk.Tk):
 
 class Segmenter():
     """Takes mask path, original file path, result path, and filename arguments and segments out epithelium and dermal layers of tissue with positive cell counts in each stratum. Epidermis is masked in green and dermis is masked in red."""
-    def __init__(self,filename,orig_path,mask_path,result_path):
+    def __init__(self, filename, orig_path, mask_path, result_path):
         self.path_mask = mask_path
         self.path_orig = orig_path
         self.path_result = result_path
         self.strip_pattern = '_c1+2+3.jpg'
-        self.filename = filename.replace(self.strip_pattern,'')
+        self.filename = filename.replace(self.strip_pattern, '')
         self.genpath = []
+
     def segment(self):
         self.im1 = io2.imread(self.path_mask)
-        self.im2 = gaussian(io2.imread(self.path_orig),sigma=1,multichannel=True)
-        im2r = np.copy(self.im2[:,:,0])
-        im2g = np.copy(self.im2[:,:,1])
-        im2b = np.copy(self.im2[:,:,2])
+        self.im2 = gaussian(io2.imread(self.path_orig), sigma=1, multichannel=True)  # improves colocalization detection
+        im2r = np.copy(self.im2[:, :, 0])
+        im2g = np.copy(self.im2[:, :, 1])
+        im2b = np.copy(self.im2[:, :, 2])
         self.im2gray = rgb2gray(self.im2)
 
-        rt = 0.3*im2r.max()
-        gt = 0.3*im2g.max() #0.3 before
-        bt = 0.3*im2b.max()
+        color_t = {'red': 0.3*im2r.max(), 'green': 0.3*im2g.max(), 'blue': 0.3*im2b.max()}
 
-        rm = im2r > rt
-        gm = im2g > gt
-        bm = im2b > bt
+        rm = im2r > color_t['red']
+        gm = im2g > color_t['green']
+        bm = im2b > color_t['blue']
 
         rm_bm = (rm == 1) & (bm == 1)
         gm_bm = (gm == 1) & (bm == 1)
-        rm_gm_bm = (gm == 1) &(rm == 1) & (bm == 1)
+        rm_gm_bm = (gm == 1) & (rm == 1) & (bm == 1)
 
-        rm_bm = np.ma.masked_where(rm_bm == 0,rm_bm)
-        rm_bm = closing(rm_bm,disk(3))
-        gm_bm = np.ma.masked_where(gm_bm == 0,gm_bm)
-        gm_bm = closing(gm_bm,disk(3))
-        rm_gm_bm = np.ma.masked_where(rm_gm_bm == 0,rm_gm_bm)
-        rm_gm_bm = closing(rm_gm_bm,disk(3))
-        
-        self.epi_seeds = np.copy((self.im1[:,:,0] == 0) & (self.im1[:,:,1] > 250) & (self.im1[:,:,2] == 0))
-        
-        #self.epi_seeds = (self.im1[:,:,0] == 123) & (self.im1[:,:,1] == 123) & (self.im1[:,:,2] == 0)
-        self.epi_seeds = dilation(self.epi_seeds,disk(15))
-        self.epi_seeds_mask = np.ma.masked_where(self.epi_seeds==0,self.epi_seeds)
-        self.bad_seeds = np.copy((self.im1[:,:,0] > 250) & (self.im1[:,:,1] == 0) & (self.im1[:,:,2] == 0))
-        #self.bad_seeds = (self.im1[:,:,0] == 0) & (self.im1[:,:,1] == 0) & (self.im1[:,:,2] == 0)
-        self.bad_seeds = dilation(self.bad_seeds,disk(15))
-        self.bad_seeds_mask = np.ma.masked_where(self.bad_seeds==0,self.bad_seeds)
+        rm_bm = np.ma.masked_where(rm_bm == 0, rm_bm)
+        rm_bm = closing(rm_bm, disk(3))
+        gm_bm = np.ma.masked_where(gm_bm == 0, gm_bm)
+        gm_bm = closing(gm_bm, disk(3))
+        rm_gm_bm = np.ma.masked_where(rm_gm_bm == 0, rm_gm_bm)
+        rm_gm_bm = closing(rm_gm_bm, disk(3))
+
+        # get the masked zones
+        self.zone1 = np.copy((self.im1[:, :, 0] == 0) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] == 0))  #grn
+        self.zone2 = np.copy((self.im1[:, :, 0] > 250) & (self.im1[:, :, 1] == 0) & (self.im1[:, :, 2] == 0))  #rd
+        self.zone3 = np.copy((self.im1[:, :, 0] == 0) & (self.im1[:, :, 1] == 0) & (self.im1[:, :, 2] > 250))  #blu
+        self.zone4 = np.copy((self.im1[:, :, 0] > 250) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] > 250))  #wht
+        self.zone5 = np.copy((self.im1[:, :, 0] == 0) & (self.im1[:, :, 1] == 0) & (self.im1[:, :, 2] == 0))  #blk
+
+        # flesh out the masked zones
+        self.zone1 = dilation(self.zone1, disk(15))
+        self.zone2 = dilation(self.zone2, disk(15))
+        self.zone3 = dilation(self.zone3, disk(15))
+        self.zone4 = dilation(self.zone4, disk(15))
+        self.zone5 = dilation(self.zone5, disk(15))
+
+        # make them into actual masks for use in overlays
+        self.zone1_mask = np.ma.masked_where(self.zone1 == 0, self.zone1)
+        self.zone2_mask = np.ma.masked_where(self.zone2 == 0, self.zone2)
+        self.zone3_mask = np.ma.masked_where(self.zone3 == 0, self.zone3)
+        self.zone4_mask = np.ma.masked_where(self.zone4 == 0, self.zone4)
+        self.zone5_mask = np.ma.masked_where(self.zone5 == 0, self.zone5)
     
-        self.epi_brdu = np.ma.masked_where(self.epi_seeds==0,gm_bm)
-        self.epi_vim = np.ma.masked_where(self.epi_seeds==0,rm_bm)
-        self.derm_mask = np.copy((self.bad_seeds==1) + (self.epi_seeds==1))
-        self.derm_vim = np.ma.masked_where((self.derm_mask==1),rm_bm)
-        self.derm_brdu = np.ma.masked_where((self.derm_mask==1),gm_bm)
+        self.zone1_green_blue = np.ma.masked_where(self.zone1 == 0, gm_bm)
+        self.zone1_red_blue = np.ma.masked_where(self.zone1 == 0, rm_bm)
+        self.derm_mask = np.copy((self.zone2 == 1) + (self.zone1 == 1))
+        self.zone2_red_blue = np.ma.masked_where((self.derm_mask == 1), rm_bm)
+        self.zone2_green_blue = np.ma.masked_where((self.derm_mask == 1), gm_bm)
  
         #need to add a remove small objects step
-        self.epi_count = measure.label(dilation(~np.ma.getmask(self.epi_brdu),disk(2)))
+        self.epi_count = measure.label(dilation(~np.ma.getmask(self.zone1_green_blue), disk(2)))
         self.ec = len(np.unique(self.epi_count))-1
-        self.derm_count = measure.label(dilation(~np.ma.getmask(self.derm_vim),disk(2)))
+        self.derm_count = measure.label(dilation(~np.ma.getmask(self.zone2_red_blue), disk(2)))
         self.dc = len(np.unique(self.derm_count))-1
         
     def plot1(self):
-        fig = plt.figure(figsize=(10,10))
-        plt.subplot(1,2,1)
+        fig = plt.figure(figsize=(10, 10))
+        plt.subplot(1, 2, 1)
         plt.imshow(self.im2)
         plt.hold(True)
-        plt.imshow(self.epi_seeds_mask,alpha=0.2,cmap='cool')
+        plt.imshow(self.zone1_mask, alpha=0.2, cmap='cool')
         plt.title('Inclusion Area: Epithelium')
         plt.xticks([])
         plt.yticks([])
-        plt.subplot(1,2,2)
+        plt.subplot(1, 2, 2)
         plt.imshow(self.im2)
         plt.hold(True)
-        plt.imshow(self.bad_seeds_mask,alpha=0.2,cmap='cool')
+        plt.imshow(self.zone2_mask, alpha=0.2, cmap='cool')
         plt.title('Exclusion Area: Follicle')
         plt.xticks([])
         plt.yticks([])
@@ -290,14 +300,14 @@ class Segmenter():
         plt.subplot(222)
         plt.imshow(self.im2)
         plt.hold(True)
-        plt.imshow(self.epi_brdu,cmap='cool')
+        plt.imshow(self.zone1_green_blue,cmap='cool')
         plt.title('BrdU+DAPI Double Positive (Epithelium)')
         plt.xticks([])
         plt.yticks([])
         plt.subplot(223)
         plt.imshow(self.im2)
         plt.hold(True)
-        plt.imshow(self.derm_vim,cmap='cool')
+        plt.imshow(self.zone2_red_blue,cmap='cool')
         plt.title('Vim+DAPI Double Positive (Dermis exl. Follicles)')
         plt.xticks([])
         plt.yticks([])
@@ -310,7 +320,7 @@ class Segmenter():
         plt.subplot(224)
         plt.imshow(im2)
         plt.hold(True)
-        plt.imshow(self.derm_vim,cmap='cool')
+        plt.imshow(self.zone2_red_blue,cmap='cool')
         plt.title('Vim+BrdU+DAPI Triple Positive (Dermis exl. Follicles)') #make this actually show triple positive
         plt.xticks([])
         plt.yticks([])
@@ -352,20 +362,20 @@ class Segmenter():
                                       fill=False, edgecolor='white', linewidth=1)
             ax.add_patch(rect)
         for region in regionprops(epi_bbox):
-            minr,minc,maxr,maxc = region.bbox
-            rect = mpatches.Rectangle((minc,minr),maxc-minc,maxr-minr,fill=False,edgecolor='magenta',linewidth=1)
+            minr, minc, maxr, maxc = region.bbox
+            rect = mpatches.Rectangle((minc, minr), maxc-minc, maxr-minr, fill=False, edgecolor='magenta', linewidth=1)
             ax.add_patch(rect)
         plt.title('Bounding Boxes')
         plt.xticks([])
         plt.yticks([])
         #plt.show()
         figsavepath = self.path_result+'/'+self.filename+'_plot4.png'
-        fig.savefig(figsavepath,dpi=150,bbox_inches='tight')
+        fig.savefig(figsavepath, dpi=150, bbox_inches='tight')
         self.genpath.append(figsavepath)
         plt.clf()
 
     def result_summary(self):
-        summary_info = (self.path_orig,self.path_mask,self.path_result,self.ec,self.dc)
+        summary_info = (self.path_orig, self.path_mask, self.path_result, self.ec, self.dc)
         return summary_info
 #(Inclusion Area: Epi, Inclusion Area: Derm), (Original, Double1, Double2, Triple), (Epi Counts, Derm Counts)
 
@@ -374,19 +384,19 @@ class Segmenter():
 import csv
 
 class SegReport():
-    def __init__(self,segment_summary,output):
-        self.output = output #path for report
+    def __init__(self, segment_summary, output):
+        self.output = output  # path for report
         self.segment_summary = segment_summary
     
     def report(self):
         #walk the same directories using ImageCrawl(should be in the segqueue?) and get the data.
         #need to make segment class generate a pickle of a results dictionary for each image.
         #digest_pattern = re.compile('^[/].*[/].*[.].*$')
-        with open(self.output,'w') as fout:
+        with open(self.output, 'w') as fout:
             report_file = csv.writer(fout)
-            report_file.writerow(['original path','mask path','result path','metric 1','metric 2'])
+            report_file.writerow(['original path', 'mask path', 'result path', 'metric 1', 'metric 2'])
             for entry in self.segment_summary:
-                report_file.writerow([entry[0],entry[1],entry[2],entry[3],entry[4]])
+                report_file.writerow([entry[0], entry[1], entry[2], entry[3], entry[4]])
                 
             
     
