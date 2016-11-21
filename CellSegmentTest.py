@@ -1,31 +1,3 @@
-
-# coding: utf-8
-
-# In[19]:
-
-#paint
-import tkinter as tk
-import io
-from PIL import Image,ImageTk
-#frontend
-import os
-import re
-#segmenter
-from skimage import io as io2
-from skimage.color import rgb2gray
-import matplotlib.pyplot as plt
-from skimage.morphology import watershed, dilation, erosion, closing, opening, disk
-from scipy import ndimage as ndi
-import numpy as np
-from skimage import measure
-from skimage.measure import regionprops
-from skimage.filters import gaussian
-import matplotlib.patches as mpatches
-
-
-
-
-
 class ImageCrawler():
     """finds all the images as a first step before curation. doesn't do anything more than provide the initial paths. Only run crawl one time on a given directory tree to initialize it"""
     def __init__(self):
