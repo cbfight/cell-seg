@@ -1,8 +1,3 @@
-
-# coding: utf-8
-
-# In[19]:
-
 #paint
 import tkinter as tk
 import io
@@ -86,6 +81,9 @@ class Paint(tk.Tk):
         self.impath = impath
         self.color1 = '#%02x%02x%02x' % (0, 255, 0)
         self.color2 = '#%02x%02x%02x' % (255, 0, 0)
+        self.color3 = '#%02x%02x%02x' % (0, 0, 255)
+        self.color4 = '#%02x%02x%02x' % (255, 255, 255)
+        self.color5 = '#%02x%02x%02x' % (0, 0, 0)
         
         self.size_s = 5
         self.size_m = 10
