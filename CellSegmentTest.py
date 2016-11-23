@@ -267,14 +267,27 @@ class Segmenter():
     def segment(self):
         # for a zone, process it for all color combinations, and do all the zones like so
         templist = []
+        b_counts = {}
+        gb_counts = {}
+        rb_counts = {}
+        rgb_counts = {}
+        color_counts = {'b': b_counts, 'r+b': rb_counts, 'g+b': gb_counts, 'r+g+b': rgb_counts}
         for zone in self.zone_list:
             for rule in self.color_rule_list:
-                print('_'.join([zone[1],rule[1]]))
-                color_layer = closing(rule[0],disk(3))
+                #print('_'.join([zone[1],rule[1]]))  # diagnostic
+                color_layer = closing(rule[0], disk(2))
                 mask = np.ma.getmask(zone[0])
-                mask_mult_color = np.multiply(~mask,color_layer)
+                mask_mult_color = np.multiply(~mask, color_layer)
                 label, counts = ndi.label(mask_mult_color)
                 templist.append((zone, rule[1], counts, label))  # zone, color rule, # counted, array
+                if rule[1] == 'b':
+                    b_counts[zone[1]] = counts
+                if rule[1] == 'r+b':
+                    rb_counts[zone[1]] = counts
+                if rule[1] == 'g+b':
+                    gb_counts[zone[1]] = counts
+                if rule[1] == 'r+g+b':
+                    rgb_counts[zone[1]] = counts
 
         for item in templist:
             fig, ax = plt.subplots(figsize=(10,10))
@@ -282,7 +295,6 @@ class Segmenter():
 
             plt.imshow(self.im2)  # the original image as background
             plt.hold(True)
-            #plt.imshow(item[0][0])
             plt.imshow(item[0][0], alpha=0.3, cmap='cool')  # the region counted as overlay
             plt.title(fname)
             plt.xticks([])
@@ -296,10 +308,12 @@ class Segmenter():
             plt.tight_layout()
 
 
-            figsavepath = self.path_result + '/' + self.filename + fname + ' diagnostic.png'
+            figsavepath = self.path_result + '/' + self.filename + '_' + fname + ' diagnostic.png'
             fig.savefig(figsavepath, dpi=150, bbox_inches='tight')
             plt.clf()
             self.genpath.append(figsavepath)
+        print(color_counts)  # diagnostic
+        return color_counts
 
     def plot1(self):
         fig = plt.figure(figsize=(10, 10))
@@ -420,7 +434,7 @@ class Segmenter():
         plt.clf()
 
     def result_summary(self):
-        summary_info = (self.path_orig, self.path_mask, self.path_result, self.z1c1, self.z1c2, self.z2c1, self.z2c2)
+        summary_info = (self.path_result, color_counts)
         return summary_info
 #(Inclusion Area: Epi, Inclusion Area: Derm), (Original, Double1, Double2, Triple), (Epi Counts, Derm Counts)
 
