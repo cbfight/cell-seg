@@ -17,7 +17,7 @@ from skimage.measure import regionprops
 from skimage.filters import gaussian
 import matplotlib.patches as mpatches
 
-color_dict = {'red':(255, 0, 0),'green':(0, 255, 0),'blue':(0, 0, 255),'white':(255, 255, 255),'black':(0, 0, 0)}
+color_dict = {'red':(255, 0, 0),'green':(0, 255, 0),'blue':(0, 0, 255),'magenta':(255, 255, 0),'cyan':(0, 255, 255)}
 
 
 class ImageCrawler():
@@ -81,10 +81,10 @@ class Paint(tk.Tk):
         self.color1 = '#%02x%02x%02x' % color_dict['green']
         self.color2 = '#%02x%02x%02x' % color_dict['red']
         self.color3 = '#%02x%02x%02x' % color_dict['blue']
-        self.color4 = '#%02x%02x%02x' % color_dict['white']
-        self.color5 = '#%02x%02x%02x' % color_dict['black']
+        self.color4 = '#%02x%02x%02x' % color_dict['magenta']
+        self.color5 = '#%02x%02x%02x' % color_dict['cyan']
         
-        self.size_s = 5
+        self.size_s= 5
         self.size_m = 10
         self.size_l = 15
         self.size_xl = 25
@@ -206,74 +206,107 @@ class Segmenter():
         self.path_mask = mask_path
         self.path_orig = orig_path
         self.path_result = result_path
+        self.im1 = io2.imread(self.path_mask)  # im1 is mask
+        self.im2 = gaussian(io2.imread(self.path_orig), sigma=1, multichannel=True)  # improves colocalization detection
         self.strip_pattern = '_c1+2+3.jpg'
         self.filename = filename.replace(self.strip_pattern, '')
         self.genpath = []
 
-    def segment(self):
-        self.im1 = io2.imread(self.path_mask)
-        self.im2 = gaussian(io2.imread(self.path_orig), sigma=1, multichannel=True)  # improves colocalization detection
-        im2r = np.copy(self.im2[:, :, 0])
-        im2g = np.copy(self.im2[:, :, 1])
-        im2b = np.copy(self.im2[:, :, 2])
-        self.im2gray = rgb2gray(self.im2)
-
-        color_t = {'red': 0.3*im2r.max(), 'green': 0.3*im2g.max(), 'blue': 0.3*im2b.max()}
-
-        rm = im2r > color_t['red']
-        gm = im2g > color_t['green']
-        bm = im2b > color_t['blue']
-
-        rm_bm = (rm == 1) & (bm == 1)
-        gm_bm = (gm == 1) & (bm == 1)
-        rm_gm_bm = (gm == 1) & (rm == 1) & (bm == 1)
-
-        rm_bm = np.ma.masked_where(rm_bm == 0, rm_bm)
-        rm_bm = closing(rm_bm, disk(3))
-        gm_bm = np.ma.masked_where(gm_bm == 0, gm_bm)
-        gm_bm = closing(gm_bm, disk(3))
-        rm_gm_bm = np.ma.masked_where(rm_gm_bm == 0, rm_gm_bm)
-        rm_gm_bm = closing(rm_gm_bm, disk(3))
-
-        # get the masked zones
-        self.zone1 = np.copy((self.im1[:, :, 0] == 0) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] == 0))  #grn
-        self.zone2 = np.copy((self.im1[:, :, 0] > 250) & (self.im1[:, :, 1] == 0) & (self.im1[:, :, 2] == 0))  #rd
-        self.zone3 = np.copy((self.im1[:, :, 0] == 0) & (self.im1[:, :, 1] == 0) & (self.im1[:, :, 2] > 250))  #blu
-        self.zone4 = np.copy((self.im1[:, :, 0] > 250) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] > 250))  #wht
-        self.zone5 = np.copy((self.im1[:, :, 0] == 0) & (self.im1[:, :, 1] == 0) & (self.im1[:, :, 2] == 0))  #blk
-
+    def get_regions(self):
+        # gets the regions in the mask image and prepares it
+        self.zone1 = np.copy((self.im1[:, :, 0] < 10) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] < 10))  # g
+        self.zone2 = np.copy((self.im1[:, :, 0] > 250) & (self.im1[:, :, 1] < 10) & (self.im1[:, :, 2] < 10))  # r
+        self.zone3 = np.copy((self.im1[:, :, 0] < 10) & (self.im1[:, :, 1] < 10) & (self.im1[:, :, 2] > 250))  # b
+        self.zone4 = np.copy((self.im1[:, :, 0] > 250) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] < 10))  # r+g (mag)
+        self.zone5 = np.copy((self.im1[:, :, 0] < 10) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] > 250))  # g+b (cy)
+        self.zone6 = np.copy((self.im1[:, :, 0] > -1) & (self.im1[:, :, 1] > -1) & (self.im1[:, :, 2] > -1))  # all colors
         # flesh out the masked zones
         self.zone1 = dilation(self.zone1, disk(15))
         self.zone2 = dilation(self.zone2, disk(15))
         self.zone3 = dilation(self.zone3, disk(15))
         self.zone4 = dilation(self.zone4, disk(15))
         self.zone5 = dilation(self.zone5, disk(15))
+        self.zone6 = dilation(self.zone6, disk(15))
 
         # make them into actual masks for use in overlays
-        self.zone1_mask = np.ma.masked_where(self.zone1 == 0, self.zone1)
-        self.zone2_mask = np.ma.masked_where(self.zone2 == 0, self.zone2)
-        self.zone3_mask = np.ma.masked_where(self.zone3 == 0, self.zone3)
-        self.zone4_mask = np.ma.masked_where(self.zone4 == 0, self.zone4)
-        self.zone5_mask = np.ma.masked_where(self.zone5 == 0, self.zone5)
-    
-        self.zone1_green_blue = np.ma.masked_where(self.zone1 == 0, gm_bm)
-        self.zone1_red_blue = np.ma.masked_where(self.zone1 == 0, rm_bm)
-        self.derm_mask = np.copy((self.zone2 == 1) + (self.zone1 == 1))
-        self.zone2_red_blue = np.ma.masked_where((self.derm_mask == 1), rm_bm)
-        self.zone2_green_blue = np.ma.masked_where((self.derm_mask == 1), gm_bm)
- 
-        #need to add a remove small objects step
-        self.epi_count = measure.label(dilation(~np.ma.getmask(self.zone1_green_blue), disk(2)))
-        self.ec = len(np.unique(self.epi_count))-1
-        self.derm_count = measure.label(dilation(~np.ma.getmask(self.zone2_red_blue), disk(2)))
-        self.dc = len(np.unique(self.derm_count))-1
-        
+
+        self.zone1_mask = np.ma.masked_less(self.zone1, 1)
+        self.zone2_mask = np.ma.masked_less(self.zone2, 1)
+        self.zone3_mask = np.ma.masked_less(self.zone3, 1)
+        self.zone4_mask = np.ma.masked_less(self.zone4, 1)
+        self.zone5_mask = np.ma.masked_less(self.zone5, 1)
+        self.zone6_mask = np.ma.masked_less(self.zone6, 1)
+
+        self.zone_list = [
+            (self.zone1_mask, 'zone 1'),
+            (self.zone2_mask, 'zone 2'),
+            (self.zone3_mask, 'zone 3'),
+            (self.zone4_mask, 'zone 4'),
+            (self.zone5_mask, 'zone 5'),
+            (self.zone6_mask, 'zone 6')]
+
+    def color_rules(self):
+        # provides the color combinations
+
+        im2r = np.copy(self.im2[:, :, 0])  # copy the original layer because weird things happened before when I didn't
+        im2g = np.copy(self.im2[:, :, 1])  # copy the original layer because weird things happened before when I didn't
+        im2b = np.copy(self.im2[:, :, 2])  # copy the original layer because weird things happened before when I didn't
+
+        color_t = {'red': 0.3 * im2r.max(), 'green': 0.3 * im2g.max(), 'blue': 0.3 * im2b.max()}
+
+        r = im2r > color_t['red']  # get the bool mask of the high spots of red channel
+        g = im2g > color_t['green']  # get the bool mask of the high spots of green channel
+        b = im2b > color_t['blue']  # get the bool mask of the high spots of blue channel
+
+        rb = (r == 1) & (b == 1)
+        gb = (g == 1) & (b == 1)
+        rgb = (r == 1) & (g == 1) & (b == 1)
+
+        self.color_rule_list = [(b,'b'), (rb, 'r+b'), (gb, 'g+b'), (rgb, 'r+g+b')]
+
+    def segment(self):
+        # for a zone, process it for all color combinations, and do all the zones like so
+        templist = []
+        for zone in self.zone_list:
+            for rule in self.color_rule_list:
+                print('_'.join([zone[1],rule[1]]))
+                color_layer = closing(rule[0],disk(3))
+                mask = np.ma.getmask(zone[0])
+                mask_mult_color = np.multiply(~mask,color_layer)
+                label, counts = ndi.label(mask_mult_color)
+                templist.append((zone, rule[1], counts, label))  # zone, color rule, # counted, array
+
+        for item in templist:
+            fig, ax = plt.subplots(figsize=(10,10))
+            fname = '_'.join([str(item[0][1]), str(item[1]), str(item[2])])
+
+            plt.imshow(self.im2)  # the original image as background
+            plt.hold(True)
+            #plt.imshow(item[0][0])
+            plt.imshow(item[0][0], alpha=0.3, cmap='cool')  # the region counted as overlay
+            plt.title(fname)
+            plt.xticks([])
+            plt.yticks([])
+
+            for region in regionprops(item[3]):
+                minr, minc, maxr, maxc = region.bbox
+                rect = mpatches.Rectangle((minc, minr), maxc - minc, maxr - minr, fill=False, edgecolor='white', linewidth=1)
+                ax.add_patch(rect)
+
+            plt.tight_layout()
+
+
+            figsavepath = self.path_result + '/' + self.filename + fname + ' diagnostic.png'
+            fig.savefig(figsavepath, dpi=150, bbox_inches='tight')
+            plt.clf()
+            self.genpath.append(figsavepath)
+
     def plot1(self):
         fig = plt.figure(figsize=(10, 10))
         plt.subplot(1, 2, 1)
         plt.imshow(self.im2)
         plt.hold(True)
-        plt.imshow(self.zone1_mask, alpha=0.2, cmap='cool')
+        plt.imshow(self.zone1_mask, alpha=0.75, cmap='cool')
         plt.title('Inclusion Area: Epithelium')
         plt.xticks([])
         plt.yticks([])
@@ -311,31 +344,32 @@ class Segmenter():
         plt.title('Vim+DAPI Double Positive (Dermis exl. Follicles)')
         plt.xticks([])
         plt.yticks([])
+        plt.subplot(224)
+        plt.imshow(self.im2)
+        plt.hold(True)
+        plt.imshow(self.zone1_count2, cmap='cool')
+        plt.title('Only Epi DAPI')  # make this actually show triple positive
+        plt.xticks([])
+        plt.yticks([])
+
+        #plt.show()
         plt.tight_layout(pad=0.5)
         #plt.show()
         figsavepath = self.path_result+'/'+self.filename+'_plot2.png'
         fig.savefig(figsavepath,dpi=150,bbox_inches='tight')
         self.genpath.append(figsavepath)
-        '''
-        plt.subplot(224)
-        plt.imshow(im2)
-        plt.hold(True)
-        plt.imshow(self.zone2_red_blue,cmap='cool')
-        plt.title('Vim+BrdU+DAPI Triple Positive (Dermis exl. Follicles)') #make this actually show triple positive
-        plt.xticks([])
-        plt.yticks([])
-        plt.tight_layout(pad=0.5)
-        plt.show()
-        '''
+
+
+
         plt.clf()
     def plot3(self):
-        fig = plt.figure(figsize=(10,10))
+        fig = plt.figure(figsize=(10, 10))
         plt.subplot(1,2,1)
-        plt.title('Epidermal Counts: '+str(self.ec))
-        plt.imshow(self.epi_count,cmap='viridis')
+        plt.title('Epidermal Counts: '+str(self.z1c1))
+        plt.imshow(self.zone1_count1, cmap='viridis')
         plt.subplot(1,2,2)
-        plt.title('Dermal Counts: '+str(self.dc))
-        plt.imshow(self.derm_count,cmap='viridis')
+        plt.title('Dermal Counts: '+str(self.z2c1))
+        plt.imshow(self.zone2_count1, cmap='viridis')
         plt.xticks([])
         plt.yticks([])
         plt.tight_layout(pad=0.5)
@@ -345,27 +379,38 @@ class Segmenter():
         self.genpath.append(figsavepath)
         plt.clf()
     def plot4(self):
-        derm_bbox = self.derm_count
-        epi_bbox = self.epi_count
+        z1c1_bbox = self.zone2_count1
+        z1c2_bbox = self.zone2_count2
+        z2c1_bbox = self.zone1_count1
+        z2c2_bbox = self.zone1_count2
         fig,ax = plt.subplots(figsize=(10,10))
         ax.imshow(self.im2)
 
-        for region in regionprops(derm_bbox):
+        for region in regionprops(z1c1_bbox):
 
             # skip small images
-            #if region.area < 5:
-                #continue
+            # if region.area < 5:
+                # continue
 
             # draw rectangle around segmented coins
             minr, minc, maxr, maxc = region.bbox
             rect = mpatches.Rectangle((minc, minr), maxc - minc, maxr - minr,
-                                      fill=False, edgecolor='white', linewidth=1)
+                                      fill=False, edgecolor='green', linewidth=1)
             ax.add_patch(rect)
-        for region in regionprops(epi_bbox):
+
+        for region in regionprops(z2c1_bbox):
             minr, minc, maxr, maxc = region.bbox
-            rect = mpatches.Rectangle((minc, minr), maxc-minc, maxr-minr, fill=False, edgecolor='magenta', linewidth=1)
+            rect = mpatches.Rectangle((minc, minr), maxc-minc, maxr-minr, fill=False, edgecolor='red', linewidth=1)
             ax.add_patch(rect)
-        plt.title('Bounding Boxes')
+        for region in regionprops(z1c2_bbox):
+            minr, minc, maxr, maxc = region.bbox
+            rect = mpatches.Rectangle((minc, minr), maxc-minc, maxr-minr, fill=False, edgecolor='white', linewidth=1)
+            ax.add_patch(rect)
+        for region in regionprops(z2c2_bbox):
+            minr, minc, maxr, maxc = region.bbox
+            rect = mpatches.Rectangle((minc, minr), maxc-minc, maxr-minr, fill=False, edgecolor='yellow', linewidth=1)
+            ax.add_patch(rect)
+        plt.title('Bounding Boxes: z1c1: grn, z1c2: wht, z2c1: rd, z2c2: yel')
         plt.xticks([])
         plt.yticks([])
         #plt.show()
@@ -375,7 +420,7 @@ class Segmenter():
         plt.clf()
 
     def result_summary(self):
-        summary_info = (self.path_orig, self.path_mask, self.path_result, self.ec, self.dc)
+        summary_info = (self.path_orig, self.path_mask, self.path_result, self.z1c1, self.z1c2, self.z2c1, self.z2c2)
         return summary_info
 #(Inclusion Area: Epi, Inclusion Area: Derm), (Original, Double1, Double2, Triple), (Epi Counts, Derm Counts)
 
@@ -394,9 +439,9 @@ class SegReport():
         #digest_pattern = re.compile('^[/].*[/].*[.].*$')
         with open(self.output, 'w') as fout:
             report_file = csv.writer(fout)
-            report_file.writerow(['original path', 'mask path', 'result path', 'metric 1', 'metric 2'])
+            report_file.writerow(['original path', 'mask path', 'result path', 'z1c1', 'z2c1', 'z1c2', 'z2c2'])
             for entry in self.segment_summary:
-                report_file.writerow([entry[0], entry[1], entry[2], entry[3], entry[4]])
+                report_file.writerow([entry[0], entry[1], entry[2], entry[3], entry[4], entry[5], entry[6]])
                 
             
     

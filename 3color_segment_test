@@ -1,0 +1,21 @@
+from CellSegmentTest import *
+
+test_data = {'fname': 'Snap-8904-Image Export-06',
+             'path': '/Users/wesleywong/Desktop/segment_test/Snap-8904-Image Export-06/Snap-8904-Image Export-06_c1+2+3.jpg',
+             'mask': '/Users/wesleywong/Desktop/segment_test/Snap-8904-Image Export-06/Snap-8904-Image Export-06_mask.png',
+             'output': '/Users/wesleywong/Desktop/test'}
+
+print('Creating test_segmenter object')
+test_segmenter = Segmenter(test_data['fname'], test_data['path'], test_data['mask'], test_data['output'])
+
+print('get regions()')
+test_segmenter.get_regions()
+
+
+print('get color rules()')
+test_segmenter.color_rules()
+
+print('segment()')
+test_segmenter.segment()
+
+print('test complete')
