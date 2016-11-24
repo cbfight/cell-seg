@@ -206,13 +206,35 @@ class Segmenter():
         self.path_mask = mask_path
         self.path_orig = orig_path
         self.path_result = result_path
-        self.im1 = io2.imread(self.path_mask)  # im1 is mask
-        self.im2 = gaussian(io2.imread(self.path_orig), sigma=1, multichannel=True)  # improves colocalization detection
-        self.strip_pattern = '_c1+2+3.jpg'
+        self.im1 = io2.imread(self.path_mask)  # read in the mask file
+        self.im2 = io2.imread(self.path_orig)  # read in the original image
+        self.strip_pattern = '_c1+2+3.jpg'  # images taken on the zeiss have this suffix that needs to be adjusted for each microscope
         self.filename = filename.replace(self.strip_pattern, '')
-        self.genpath = []
+        self.genpath = []  # a record of all the file paths produced by this object
+        self.result_dict = None
+
+    def correction(self, disk_size=15, T=0.25, gaussian_sigma=3):
+        """apply preprocessing steps here to the parent image; currently performs H-dome bg subtr and a gaussian filter"""
+        im = self.im2
+        uncorr_red = np.copy(im[:, :, 0])
+        uncorr_green = np.copy(im[:, :, 1])
+        uncorr_blue = np.copy(im[:, :, 2])
+        uncorr_cols = (uncorr_red, uncorr_green, uncorr_blue)
+        corrected_cols = []
+
+        for uncorrected in uncorr_cols:
+            bg = opening(uncorrected, disk(disk_size))
+            corrected = ndi.gaussian_filter(uncorrected - bg, gaussian_sigma)
+            corrected = corrected > T * corrected.max()
+            corrected_cols.append(corrected)
+        self.im2 = np.dstack(corrected_cols)
+
+
+
+
 
     def get_regions(self):
+        """works on the mask file only to determine highlighted regions"""
         # gets the regions in the mask image and prepares it
         self.zone1 = np.copy((self.im1[:, :, 0] < 10) & (self.im1[:, :, 1] > 250) & (self.im1[:, :, 2] < 10))  # g
         self.zone2 = np.copy((self.im1[:, :, 0] > 250) & (self.im1[:, :, 1] < 10) & (self.im1[:, :, 2] < 10))  # r
@@ -246,8 +268,7 @@ class Segmenter():
             (self.zone6_mask, 'zone 6')]
 
     def color_rules(self):
-        # provides the color combinations
-
+        """works on the original (or corrected original) image to segregate color features"""
         im2r = np.copy(self.im2[:, :, 0])  # copy the original layer because weird things happened before when I didn't
         im2g = np.copy(self.im2[:, :, 1])  # copy the original layer because weird things happened before when I didn't
         im2b = np.copy(self.im2[:, :, 2])  # copy the original layer because weird things happened before when I didn't
@@ -267,14 +288,27 @@ class Segmenter():
     def segment(self):
         # for a zone, process it for all color combinations, and do all the zones like so
         templist = []
+        b_counts = {}
+        gb_counts = {}
+        rb_counts = {}
+        rgb_counts = {}
+        color_counts = {'b': b_counts, 'r+b': rb_counts, 'g+b': gb_counts, 'r+g+b': rgb_counts}
         for zone in self.zone_list:
             for rule in self.color_rule_list:
-                print('_'.join([zone[1],rule[1]]))
-                color_layer = closing(rule[0],disk(3))
+                #print('_'.join([zone[1],rule[1]]))  # diagnostic
+                color_layer = closing(rule[0], disk(2))
                 mask = np.ma.getmask(zone[0])
-                mask_mult_color = np.multiply(~mask,color_layer)
+                mask_mult_color = np.multiply(~mask, color_layer)
                 label, counts = ndi.label(mask_mult_color)
                 templist.append((zone, rule[1], counts, label))  # zone, color rule, # counted, array
+                if rule[1] == 'b':
+                    b_counts[zone[1]] = counts
+                if rule[1] == 'r+b':
+                    rb_counts[zone[1]] = counts
+                if rule[1] == 'g+b':
+                    gb_counts[zone[1]] = counts
+                if rule[1] == 'r+g+b':
+                    rgb_counts[zone[1]] = counts
 
         for item in templist:
             fig, ax = plt.subplots(figsize=(10,10))
@@ -282,7 +316,6 @@ class Segmenter():
 
             plt.imshow(self.im2)  # the original image as background
             plt.hold(True)
-            #plt.imshow(item[0][0])
             plt.imshow(item[0][0], alpha=0.3, cmap='cool')  # the region counted as overlay
             plt.title(fname)
             plt.xticks([])
@@ -296,10 +329,12 @@ class Segmenter():
             plt.tight_layout()
 
 
-            figsavepath = self.path_result + '/' + self.filename + fname + ' diagnostic.png'
-            fig.savefig(figsavepath, dpi=150, bbox_inches='tight')
+            figsavepath = self.path_result + '/' + self.filename + '_' + fname + ' diagnostic.png'
+            fig.savefig(figsavepath, dpi=150, bbox_inches='tight')  # disabling save for testing
             plt.clf()
             self.genpath.append(figsavepath)
+        #print(color_counts)  # diagnostic
+        self.result_dict = color_counts # a dictionary contain break down of results by color then zone
 
     def plot1(self):
         fig = plt.figure(figsize=(10, 10))
@@ -420,15 +455,19 @@ class Segmenter():
         plt.clf()
 
     def result_summary(self):
-        summary_info = (self.path_orig, self.path_mask, self.path_result, self.z1c1, self.z1c2, self.z2c1, self.z2c2)
+        summary_info = [self.path_result,
+                        self.result_dict['b'],
+                        self.result_dict['g+b'],
+                        self.result_dict['r+b'],
+                        self.result_dict['r+g+b']]
         return summary_info
-#(Inclusion Area: Epi, Inclusion Area: Derm), (Original, Double1, Double2, Triple), (Epi Counts, Derm Counts)
 
-#write out the results from segment to a report... 
-#import openpyxl
+
+
 import csv
 
 class SegReport():
+    """this takes the segment_summary either directly or from a pickle and writes a csv for all the done images"""
     def __init__(self, segment_summary, output):
         self.output = output  # path for report
         self.segment_summary = segment_summary
@@ -439,9 +478,22 @@ class SegReport():
         #digest_pattern = re.compile('^[/].*[/].*[.].*$')
         with open(self.output, 'w') as fout:
             report_file = csv.writer(fout)
-            report_file.writerow(['original path', 'mask path', 'result path', 'z1c1', 'z2c1', 'z1c2', 'z2c2'])
+            report_file.writerow(['root directory',
+                                  'z1 b', 'z2 b', 'z3 b', 'z4 b',
+                                  'z5 b', 'z6 b', 'z1 g+b', 'z2 g+b',
+                                  'z3 g+b', 'z4 g+b', 'z5 g+b', 'z6 g+b',
+                                  'z1 r+b', 'z2 r+b', 'z3 r+b', 'z4 r+b',
+                                  'z5 r+b', 'z6 r+b', 'z1 r+g+b', 'z2 r+g+b',
+                                  'z3 r+g+b', 'z4 r+g+b', 'z5 r+g+b', 'z6 r+g+b',])
+
             for entry in self.segment_summary:
-                report_file.writerow([entry[0], entry[1], entry[2], entry[3], entry[4], entry[5], entry[6]])
+                report_file.writerow([entry[0],
+                                      entry[1]['zone 1'], entry[1]['zone 2'], entry[1]['zone 3'], entry[1]['zone 4'],
+                                      entry[1]['zone 5'], entry[1]['zone 6'], entry[2]['zone 1'], entry[2]['zone 2'],
+                                      entry[2]['zone 3'], entry[2]['zone 4'], entry[2]['zone 5'], entry[2]['zone 6'],
+                                      entry[3]['zone 1'], entry[3]['zone 2'], entry[3]['zone 3'], entry[3]['zone 4'],
+                                      entry[3]['zone 5'], entry[3]['zone 6'], entry[4]['zone 1'], entry[4]['zone 2'],
+                                      entry[4]['zone 3'], entry[4]['zone 4'], entry[4]['zone 5'], entry[4]['zone 6']])
                 
             
     

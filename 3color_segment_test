@@ -4,9 +4,22 @@ test_data = {'fname': 'Snap-8904-Image Export-06',
              'path': '/Users/wesleywong/Desktop/segment_test/Snap-8904-Image Export-06/Snap-8904-Image Export-06_c1+2+3.jpg',
              'mask': '/Users/wesleywong/Desktop/segment_test/Snap-8904-Image Export-06/Snap-8904-Image Export-06_mask.png',
              'output': '/Users/wesleywong/Desktop/test'}
+human_counts_z1 = {'zone 1 gb': 32,
+                'zone 1 rb': 0,
+                'zone 1 rgb': 0,
+                'zone 1 b': 72}
+
+human_counts_z2 = {'zone 2 gb': 16,
+                'zone 2 rb': 0,
+                'zone 2 rgb': 0,
+                'zone 2 b': 37}
 
 print('Creating test_segmenter object')
 test_segmenter = Segmenter(test_data['fname'], test_data['path'], test_data['mask'], test_data['output'])
+
+print('correction()')
+test_segmenter.correction(disk_size=15, T=0.25, gaussian_sigma=3)
+
 
 print('get regions()')
 test_segmenter.get_regions()
@@ -16,6 +29,11 @@ print('get color rules()')
 test_segmenter.color_rules()
 
 print('segment()')
-test_segmenter.segment()
+auto_counts = test_segmenter.segment()
+
+print('z1b_auto: %d | z1b_human: %d' % (auto_counts['b']['zone 1'], human_counts_z1['zone 1 b']))
+print('z1gb_auto: %d | z1gb_human: %d' % (auto_counts['g+b']['zone 1'], human_counts_z1['zone 1 gb']))
+print('z2b_auto: %d | z2b_human: %d' % (auto_counts['b']['zone 2'], human_counts_z2['zone 2 b']))
+print('z2gb_auto: %d | z2gb_human: %d' % (auto_counts['g+b']['zone 2'], human_counts_z2['zone 2 gb']))
 
 print('test complete')
