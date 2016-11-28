@@ -153,6 +153,7 @@ class Paint(tk.Tk):
         self.opened_image = tk.PhotoImage(master=self.canvas)
         self.canvas.create_image(0, 0, image=self.image, anchor=tk.NW, tags='image')
         self.canvas.pack()
+        self.resizable(width=False,height=False)
         
     def setSize(self,newsize):
         self.size = newsize
@@ -331,7 +332,7 @@ class Segmenter():
 
             figsavepath = self.path_result + '/' + self.filename + '_' + fname + ' diagnostic.png'
             fig.savefig(figsavepath, dpi=150, bbox_inches='tight')  # disabling save for testing
-            plt.clf()
+            plt.close('all')
             self.genpath.append(figsavepath)
         #print(color_counts)  # diagnostic
         self.result_dict = color_counts # a dictionary contain break down of results by color then zone
