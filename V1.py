@@ -159,6 +159,7 @@ if input('There are %d images annotated and ready to process. Proceed? Estimated
     for image in segqueue:
         print('Segmenting: %s' % image[0])
         segApp = Segmenter(image[0],image[1],image[2],image[3])
+        segApp.correction(T=0.30)
         segApp.color_rules()
         segApp.get_regions()
         segApp.segment()
